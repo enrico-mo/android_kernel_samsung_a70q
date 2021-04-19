@@ -201,8 +201,6 @@ struct kgsl_memdesc_ops {
 #define KGSL_MEMDESC_CONTIG BIT(8)
 /* This is an instruction buffer */
 #define KGSL_MEMDESC_UCODE BIT(9)
-/* For global buffers, randomly assign an address from the region */
-#define KGSL_MEMDESC_RANDOM BIT(10)
 
 /**
  * struct kgsl_memdesc - GPU memory object descriptor
@@ -233,7 +231,7 @@ struct kgsl_memdesc {
 	uint64_t gpuaddr;
 	phys_addr_t physaddr;
 	uint64_t size;
-	uint64_t mapsize;
+	atomic64_t mapsize;
 	uint64_t pad_to;
 	unsigned int priv;
 	struct sg_table *sgt;
@@ -321,7 +319,7 @@ struct kgsl_event {
 	void *priv;
 	struct list_head node;
 	unsigned int created;
-	struct kthread_work work;
+	struct work_struct work;
 	int result;
 	struct kgsl_event_group *group;
 };

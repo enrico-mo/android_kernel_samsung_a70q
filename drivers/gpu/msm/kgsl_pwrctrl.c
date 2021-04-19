@@ -2555,8 +2555,9 @@ void kgsl_idle_check(struct work_struct *work)
 
 	requested_state = device->requested_state;
 
-	if (device->state == KGSL_STATE_ACTIVE
-		   || device->state ==  KGSL_STATE_NAP) {
+	if ((requested_state != KGSL_STATE_NONE) &&
+		(device->state == KGSL_STATE_ACTIVE
+			|| device->state ==  KGSL_STATE_NAP)) {
 
 		if (!atomic_read(&device->active_cnt)) {
 			spin_lock(&device->submit_lock);
@@ -2843,7 +2844,7 @@ _aware(struct kgsl_device *device)
 		break;
 	case KGSL_STATE_INIT:
 		/* if GMU already in FAULT */
-		if (gmu_core_isenabled(device) &&
+		if (gmu_core_gpmu_isenabled(device) &&
 			test_bit(GMU_FAULT, &device->gmu_core.flags)) {
 			status = -EINVAL;
 			break;
@@ -2860,7 +2861,7 @@ _aware(struct kgsl_device *device)
 		break;
 	case KGSL_STATE_SLUMBER:
 		/* if GMU already in FAULT */
-		if (gmu_core_isenabled(device) &&
+		if (gmu_core_gpmu_isenabled(device) &&
 			test_bit(GMU_FAULT, &device->gmu_core.flags)) {
 			status = -EINVAL;
 			break;
@@ -2873,7 +2874,7 @@ _aware(struct kgsl_device *device)
 	}
 
 	if (status) {
-		if (gmu_core_isenabled(device)) {
+		if (gmu_core_gpmu_isenabled(device)) {
 			/* GMU hang recovery */
 			kgsl_pwrctrl_set_state(device, KGSL_STATE_RESET);
 			set_bit(GMU_FAULT, &device->gmu_core.flags);
@@ -2989,7 +2990,6 @@ _slumber(struct kgsl_device *device)
 		kgsl_pwrctrl_clk_set_options(device, false);
 		kgsl_pwrctrl_disable(device);
 		kgsl_pwrscale_sleep(device);
-		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_SLUMBER);
 		pm_qos_update_request(&device->pwrctrl.pm_qos_req_dma,
 						PM_QOS_DEFAULT_VALUE);

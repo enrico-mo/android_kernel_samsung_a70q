@@ -690,10 +690,10 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 	if (vdd->support_optical_fingerprint) {
 		finger_mask_state = sde_connector_get_property(c_conn->base.state,
 				CONNECTOR_PROP_FINGERPRINT_MASK);
-		vdd->finger_mask_prop_updated = false;
-		if (finger_mask_state != vdd->finger_mask_prop) {
-			vdd->finger_mask_prop = finger_mask_state;
-			vdd->finger_mask_prop_updated = true;
+		vdd->finger_mask_updated = false;
+		if (finger_mask_state != vdd->finger_mask) {
+			vdd->finger_mask = finger_mask_state;
+			vdd->finger_mask_updated = true;
 			SDE_ERROR("[FINGER_MASK]updated finger mask mode %d\n", finger_mask_state);
 		}
 	}
@@ -1193,7 +1193,7 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 
 		/* convert fb val to drm framebuffer and prepare it */
 		c_state->out_fb =
-			drm_framebuffer_lookup(connector->dev, val);
+			drm_framebuffer_lookup(connector->dev, NULL, val);
 		if (!c_state->out_fb && val) {
 			SDE_ERROR("failed to look up fb %lld\n", val);
 			rc = -EFAULT;

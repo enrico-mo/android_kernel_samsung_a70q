@@ -643,6 +643,22 @@ static int for_each_subsys_device(struct subsys_device **list,
 	return 0;
 }
 
+static void subsys_notif_uevent(struct subsys_desc *desc,
+				enum subsys_notif_type notif)
+{
+	char *envp[3];
+
+	if (notif == SUBSYS_AFTER_POWERUP) {
+		envp[0] = kasprintf(GFP_KERNEL, "SUBSYSTEM=%s", desc->name);
+		envp[1] = kasprintf(GFP_KERNEL, "NOTIFICATION=%d", notif);
+		envp[2] = NULL;
+		kobject_uevent_env(&desc->dev->kobj, KOBJ_CHANGE, envp);
+		pr_debug("%s %s sent\n", envp[0], envp[1]);
+		kfree(envp[1]);
+		kfree(envp[0]);
+	}
+}
+
 static void notify_each_subsys_device(struct subsys_device **list,
 		unsigned int count,
 		enum subsys_notif_type notif, void *data)
@@ -689,6 +705,7 @@ static void notify_each_subsys_device(struct subsys_device **list,
 								&notif_data);
 		cancel_timeout(dev->desc);
 		trace_pil_notif("after_send_notif", notif, dev->desc->fw_name);
+		subsys_notif_uevent(dev->desc, notif);
 	}
 }
 
@@ -1281,7 +1298,7 @@ int subsystem_restart_dev(struct subsys_device *dev)
     
     send_early_notifications(dev->early_notify);
 
-	if ((sec_debug_is_modem_separate_debug_ssr() ==
+	if ((sec_debug_summary_is_modem_separate_debug_ssr() ==
 	    SEC_DEBUG_MODEM_SEPARATE_EN)
 	    && strcmp(name, "slpi")
 	    && strcmp(name, "adsp")) {
@@ -1294,12 +1311,6 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		dev->restart_level = RESET_SUBSYS_COUPLED;
 	else
 		dev->restart_level = RESET_SOC;
-
-#if defined(CONFIG_SEC_A70Q_PROJECT) || defined(CONFIG_SEC_A60Q_PROJECT)
-	if (!strcmp(name, "adsp")) {
-		dev->restart_level = RESET_SUBSYS_COUPLED;
-	}
-#endif
 
 	if (!strncmp(name, "modem", 5)) {
 		if (silent_ssr)  /* qcrtr ioctl force silent ssr */

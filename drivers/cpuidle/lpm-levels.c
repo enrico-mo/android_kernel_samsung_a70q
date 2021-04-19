@@ -648,15 +648,14 @@ static inline bool is_cpu_biased(int cpu, uint64_t *bias_time)
 {
 	u64 now = sched_clock();
 	u64 last = sched_get_cpu_last_busy_time(cpu);
-	int hyst_bias = pm_qos_request(PM_QOS_HIST_BIAS);
 	u64 diff = 0;
 
 	if (!last)
 		return false;
 
 	diff = now - last;
-	if (diff < max(BIAS_HYST, hyst_bias*NSEC_PER_MSEC)) {
-		*bias_time = max(BIAS_HYST, hyst_bias*NSEC_PER_MSEC) - diff;
+	if (diff < BIAS_HYST) {
+		*bias_time = BIAS_HYST - diff;
 		return true;
 	}
 
@@ -1477,10 +1476,15 @@ static int lpm_cpuidle_enter(struct cpuidle_device *dev,
 	if (need_resched())
 		goto exit;
 
+/* FIXME : remove secdbg logging for reducing cpu hang issues */
+#if 0 //#ifdef CONFIG_SEC_DEBUG_POWER_LOG 
 	sec_debug_cpu_lpm_log(dev->cpu, idx, 0, 1);
-	secdbg_sched_msg("+Idle(%s)", cluster->cpu->levels[idx].name);
+	sec_debug_sched_msg("+Idle(%s)", cluster->cpu->levels[idx].name);
 	success = psci_enter_sleep(cpu, idx, true);
-	secdbg_sched_msg("-Idle(%s)", cluster->cpu->levels[idx].name);
+	sec_debug_sched_msg("-Idle(%s)", cluster->cpu->levels[idx].name);
+#else
+	success = psci_enter_sleep(cpu, idx, true);
+#endif
 
 exit:
 	end_time = ktime_to_ns(ktime_get());

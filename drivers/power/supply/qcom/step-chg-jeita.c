@@ -268,7 +268,7 @@ int read_range_data_from_node(struct device_node *node,
 			pr_info("%s: invalid swelling_type : %d\n", __func__, swelling_type);
 			swelling_type = 0;
 		}
-
+		
 		pr_info("%s: swelling_type : %d\n", __func__, swelling_type);
 	}
 	if (strcmp(prop_str, "qcom,step-chg-ranges") == 0) {
@@ -492,6 +492,7 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 		int *new_index, int *val)
 {
 #if defined(CONFIG_BATTERY_SAMSUNG_USING_QC)
+	struct sec_battery_info *battery = get_sec_battery();
 	union power_supply_propval pval = {0, };
 	int rc = 0;
 	int rechg_vbat_cool;
@@ -544,34 +545,34 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 	 * newfound value. There is no hysterisis from out of range
 	 * to in range transition
 	 */
-	if (current_index == -EINVAL)
-		return 0;
+	if (current_index != -EINVAL) {
 
 	/*
 	 * Check for hysteresis if it in the neighbourhood
 	 * of our current index.
 	 */
-	if (*new_index == current_index + 1) {
-		if (threshold < range[*new_index].low_threshold + hysteresis) {
-			/*
-			 * Stay in the current index, threshold is not higher
-			 * by hysteresis amount
-			 */
-			*new_index = current_index;
-			*val = range[current_index].value;
-		}
-	} else if (*new_index == current_index - 1) {
+		if (*new_index == current_index + 1) {
+			if (threshold < range[*new_index].low_threshold + hysteresis) {
+				/*
+			 	 * Stay in the current index, threshold is not higher
+			 	 * by hysteresis amount
+				*/
+				*new_index = current_index;
+				*val = range[current_index].value;
+			}
+		} else if (*new_index == current_index - 1) {
 #if defined(CONFIG_BATTERY_SAMSUNG_USING_QC)
-		if (hysteresis == 0) 		/* Hysteresis 0 is only for step-chg */
-			hysteresis = 100000;
+			if (hysteresis == 0) 		/* Hysteresis 0 is only for step-chg */
+				hysteresis = 100000;
 #endif
-		if (threshold > range[*new_index].high_threshold - hysteresis) {
-			/*
-			 * stay in the current index, threshold is not lower
-			 * by hysteresis amount
-			 */
-			*new_index = current_index;
-			*val = range[current_index].value;
+			if (threshold > range[*new_index].high_threshold - hysteresis) {
+				/*
+				 * stay in the current index, threshold is not lower
+			 	 * by hysteresis amount
+			 	 */
+				*new_index = current_index;
+				*val = range[current_index].value;
+			}
 		}
 	}
 #if defined(CONFIG_BATTERY_SAMSUNG_USING_QC)
@@ -585,7 +586,7 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 			} else {
 				rechg_vbat_cool = pval.intval / 1000 - 150; //mv
 			}
-
+		
 		if (*new_index == swelling_index[swelling_type][JEITA_COOL1]) {
 			pval.intval = rechg_vbat_cool;
 			sec_bat_set_current_event(
@@ -642,6 +643,11 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 				POWER_SUPPLY_PROP_RECHARGE_VBAT, &pval);
 		if (rc < 0)
 			pr_err("Set recharge Vbat failed, rc=%d\n", rc);
+		if (!battery) {
+			pr_info("%s: return index = %d -> %d\n",
+				__func__, *new_index, current_index);
+			*new_index = current_index;
+		}
 	}
 #endif
 	return 0;
@@ -744,7 +750,11 @@ static int handle_step_chg_config(struct step_chg_info *chip)
 	elapsed_us = ktime_us_delta(ktime_get(), chip->step_last_update_time);
 	/* skip processing, event too early */
 	if (elapsed_us < STEP_CHG_HYSTERISIS_DELAY_US)
+#if defined(CONFIG_BATTERY_SAMSUNG_USING_QC)
 		return 0;
+#else
+	goto reschedule;
+#endif
 
 	rc = power_supply_get_property(chip->batt_psy,
 		POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED, &pval);
@@ -792,7 +802,7 @@ static int handle_step_chg_config(struct step_chg_info *chip)
 	/* Do not drop step-chg index, if input supply is present */
 	if (is_input_present(chip)) {
 #if defined(CONFIG_BATTERY_SAMSUNG_USING_QC)
-		if (chip->step_index < current_index){
+		if (chip->step_index < current_index){	
 			chip->step_index = current_index;
 			fcc_ua = chip->step_chg_config->fcc_cfg[current_index].value;
 		}
@@ -993,7 +1003,6 @@ set_jeita_fv:
 #endif
 update_time:
 	chip->jeita_last_update_time = ktime_get();
-
 	return 0;
 }
 
@@ -1041,11 +1050,14 @@ static void status_change_work(struct work_struct *work)
 		goto exit_work;
 
 	handle_battery_insertion(chip);
-
-	/* skip elapsed_us debounce for handling battery temperature */
-	rc = handle_jeita(chip);
-	if (rc < 0)
-		pr_err("Couldn't handle sw jeita rc = %d\n", rc);
+	if (!is_input_present(chip)) {
+		chip->jeita_fcc_index = -EINVAL;
+	} else {
+		/* skip elapsed_us debounce for handling battery temperature */
+		rc = handle_jeita(chip);
+		if (rc < 0)
+			pr_err("Couldn't handle sw jeita rc = %d\n", rc);
+	}
 
 	rc = handle_step_chg_config(chip);
 	if (rc < 0)
@@ -1062,7 +1074,6 @@ static void status_change_work(struct work_struct *work)
 						false, 0);
 		}
 	}
-
 exit_work:
 	__pm_relax(chip->step_chg_ws);
 }

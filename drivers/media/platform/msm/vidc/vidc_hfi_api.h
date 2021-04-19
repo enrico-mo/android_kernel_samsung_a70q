@@ -108,7 +108,8 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_ASPECT_RATIO,
 	HAL_EXTRADATA_MPEG2_SEQDISP,
 	HAL_EXTRADATA_STREAM_USERDATA,
-	HAL_EXTRADATA_FRAME_QP,
+	HAL_EXTRADATA_DEC_FRAME_QP,
+	HAL_EXTRADATA_ENC_FRAME_QP,
 	HAL_EXTRADATA_LTR_INFO,
 	HAL_EXTRADATA_ROI_QP,
 	HAL_EXTRADATA_OUTPUT_CROP,
@@ -118,6 +119,8 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_VPX_COLORSPACE,
 	HAL_EXTRADATA_UBWC_CR_STATS_INFO,
 	HAL_EXTRADATA_HDR10PLUS_METADATA,
+	HAL_EXTRADATA_ENC_DTS_METADATA,
+	HAL_EXTRADATA_INPUT_CROP,
 };
 
 enum hal_property {
@@ -152,7 +155,6 @@ enum hal_property {
 	HAL_CONFIG_VENC_IDR_PERIOD,
 	HAL_PARAM_VENC_ADAPTIVE_B,
 	HAL_PARAM_VPE_ROTATION,
-	HAL_CONFIG_VPE_FLIP,
 	HAL_PARAM_VENC_INTRA_REFRESH,
 	HAL_PARAM_VENC_MULTI_SLICE_CONTROL,
 	HAL_SYS_DEBUG_CONFIG,
@@ -661,8 +663,8 @@ struct hal_heic_grid_enable {
 
 enum hal_flip {
 	HAL_FLIP_NONE,
-	HAL_FLIP_HORIZONTAL,
 	HAL_FLIP_VERTICAL,
+	HAL_FLIP_HORIZONTAL,
 	HAL_FLIP_BOTH,
 	HAL_UNUSED_FLIP = 0x10000000,
 };
@@ -978,6 +980,8 @@ struct vidc_frame_data {
 	u32 filled_len;
 	u32 mark_target;
 	u32 mark_data;
+	u32 input_tag;
+	u32 output_tag;
 	u32 clnt_data;
 	u32 extradata_size;
 };
@@ -1174,6 +1178,8 @@ struct vidc_hal_ebd {
 	u32 mark_data;
 	u32 stats;
 	u32 offset;
+	u32 input_tag;
+	u32 output_tag;
 	u32 alloc_len;
 	u32 filled_len;
 	enum hal_picture picture_type;
@@ -1200,6 +1206,7 @@ struct vidc_hal_fbd {
 	u32 start_y_coord;
 	u32 input_tag;
 	u32 input_tag1;
+	u32 output_tag;
 	enum hal_picture picture_type;
 	u32 packet_buffer1;
 	u32 extra_data_buffer;
@@ -1321,12 +1328,16 @@ struct msm_vidc_cb_event {
 	u32 hal_event_type;
 	u32 packet_buffer;
 	u32 extra_data_buffer;
+	u32 output_tag;
 	u32 pic_struct;
 	u32 colour_space;
 	u32 profile;
 	u32 level;
 	u32 entropy_mode;
 	u32 capture_buf_count;
+	u32 max_dpb_count;
+	u32 max_ref_count;
+	u32 max_dec_buffering;
 	struct hal_index_extradata_input_crop_payload crop_data;
 };
 

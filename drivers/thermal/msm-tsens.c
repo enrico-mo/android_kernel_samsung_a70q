@@ -232,10 +232,6 @@ static int tsens_thermal_zone_register(struct tsens_device *tmdev)
 
 static int tsens_tm_remove(struct platform_device *pdev)
 {
-	struct tsens_device *tmdev = platform_get_drvdata(pdev);
-
-	if (tmdev)
-		list_del(&tmdev->list);
 	platform_set_drvdata(pdev, NULL);
 
 #if CONFIG_SEC_PM_DEBUG
@@ -360,7 +356,6 @@ static struct platform_driver tsens_tm_driver = {
 		.name = "msm-tsens",
 		.owner = THIS_MODULE,
 		.of_match_table = tsens_table,
-		.suppress_bind_attrs = true,
 	},
 };
 

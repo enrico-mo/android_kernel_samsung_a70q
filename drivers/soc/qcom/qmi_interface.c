@@ -19,7 +19,6 @@
 #include <linux/net.h>
 #include <linux/completion.h>
 #include <linux/idr.h>
-#include <linux/ipc_logging.h>
 #include <linux/string.h>
 #include <net/sock.h>
 #include <linux/workqueue.h>
@@ -27,11 +26,6 @@
 
 static struct socket *qmi_sock_create(struct qmi_handle *qmi,
 				      struct sockaddr_qrtr *sq);
-
-static void *qmi_txn_ilc;
-#define QMI_INFO(x, ...) \
-	if (qmi_txn_ilc) \
-	ipc_log_string(qmi_txn_ilc, x, ##__VA_ARGS__) \
 
 /**
  * qmi_recv_new_server() - handler of NEW_SERVER control message
@@ -334,7 +328,6 @@ int qmi_txn_init(struct qmi_handle *qmi, struct qmi_txn *txn,
 		pr_err("failed to allocate transaction id\n");
 
 	txn->id = ret;
-	QMI_INFO("%s qmi[%p] txn[%p] id[%d]\n", __func__, qmi, txn, txn->id);
 	mutex_unlock(&qmi->txn_lock);
 
 	return ret;
@@ -357,7 +350,6 @@ int qmi_txn_wait(struct qmi_txn *txn, unsigned long timeout)
 	struct qmi_handle *qmi = txn->qmi;
 	int ret;
 
-	QMI_INFO("%s before wait qmi[%p] txn[%p] id[%d]\n", __func__, qmi, txn, txn->id);
 	ret = wait_for_completion_timeout(&txn->completion, timeout);
 
 	if (txn->result == -ENETRESET) {
@@ -469,6 +461,7 @@ static void qmi_handle_net_reset(struct qmi_handle *qmi)
 	/* Already qmi_handle_release() started */
 	if (!qmi->sock) {
 		sock_release(sock);
+		mutex_unlock(&qmi->sock_lock);
 		return;
 	}
 	sock_release(qmi->sock);
@@ -692,9 +685,6 @@ int qmi_handle_init(struct qmi_handle *qmi, size_t recv_buf_size,
 		goto err_destroy_wq;
 	}
 
-	if (!qmi_txn_ilc) {
-		qmi_txn_ilc = ipc_log_context_create(5, "qmi_txns", 0);
-	}
 	return 0;
 
 err_destroy_wq:

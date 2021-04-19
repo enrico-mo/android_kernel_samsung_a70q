@@ -25,7 +25,7 @@ static char product_string[256];
 #include <linux/usb/ch9.h>
 
 #ifdef CONFIG_USB_F_NCM
-#include <function/u_ncm.h>
+#include "function/u_ncm.h"
 #endif
 
 #ifdef CONFIG_USB_CONFIGFS_F_ACC
@@ -217,7 +217,7 @@ static int usb_string_copy(const char *s, char **s_copy)
 		if (!str)
 			return -ENOMEM;
 	}
-	strncpy(str, s, MAX_USB_STRING_WITH_NULL_LEN);
+	strlcpy(str, s, MAX_USB_STRING_WITH_NULL_LEN);
 	if (str[ret - 1] == '\n')
 		str[ret - 1] = '\0';
 	*s_copy = str;
@@ -1584,7 +1584,7 @@ static void android_work(struct work_struct *data)
 #ifdef CONFIG_USB_TYPEC_MANAGER_NOTIFIER
 		if (gi->connected) {
 			if (cdev->desc.bcdUSB == 0x310) {
-				set_usb_enumeration_state(0x310);	// Super-Speed
+				set_usb_enumeration_state(0x310);	// Super-Speed	
 			} else {
 				set_usb_enumeration_state(0x210);	// High-Speed
 			}
@@ -1726,7 +1726,7 @@ static int android_setup(struct usb_gadget *gadget,
 			cdev->mute_switch == true)
 		cdev->mute_switch = false;
 #endif
-
+	
 	if (c->bRequest == USB_REQ_SET_CONFIGURATION &&
 						cdev->config) {
 		schedule_work(&gi->work);
@@ -1762,6 +1762,7 @@ static void android_disconnect(struct usb_gadget *gadget)
 	acc_disconnect();
 #endif
 	gi->connected = 0;
+	
 
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	/* avoid sending a disconnect switch event
@@ -1774,13 +1775,13 @@ static void android_disconnect(struct usb_gadget *gadget)
 	} else {
 		pr_info("usb: %s schedule_work con(%d) sw(%d)\n",
 			 __func__, gi->connected, gi->sw_connected);
-		if (!gi->unbinding)
-			schedule_work(&gi->work);
+	if (!gi->unbinding)
+		schedule_work(&gi->work);
 	}
 	composite_disconnect(gadget);
 #else
 	if (!gi->unbinding)
-		schedule_work(&gi->work);
+	schedule_work(&gi->work);
 	composite_disconnect(gadget);
 #endif
 }
