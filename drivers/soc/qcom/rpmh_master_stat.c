@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,7 +47,6 @@ enum master_smem_id {
 	SLPI,
 	GPU,
 	DISPLAY,
-	SLPI_ISLAND = 613,
 };
 
 enum master_pid {
@@ -77,10 +76,8 @@ struct msm_rpmh_master_data {
 static const struct msm_rpmh_master_data rpmh_masters[] = {
 	{"MPSS", MPSS, PID_MPSS},
 	{"ADSP", ADSP, PID_ADSP},
-	{"ADSP_ISLAND", SLPI_ISLAND, PID_ADSP},
 	{"CDSP", CDSP, PID_CDSP},
 	{"SLPI", SLPI, PID_SLPI},
-	{"SLPI_ISLAND", SLPI_ISLAND, PID_SLPI},
 	{"GPU", GPU, PID_GPU},
 	{"DISPLAY", DISPLAY, PID_DISPLAY},
 };
@@ -116,43 +113,37 @@ void debug_masterstats_show(char *annotation)
 	struct msm_rpmh_master_stats *record = NULL;
 	uint64_t accumulated_duration;
 	unsigned int duration_sec, duration_msec;
-	char buf[256];
-	char *buf_ptr = buf;
 
 	mutex_lock(&rpmh_stats_mutex);
 
-	buf_ptr += sprintf(buf_ptr, "PM: %s: ", annotation);
+	pr_cont("PM: %s: ", annotation);
 	/* Read SMEM data written by other masters */
 	for (i = 0; i < ARRAY_SIZE(rpmh_masters); i++) {
 		record = (struct msm_rpmh_master_stats *) qcom_smem_get(
 					rpmh_masters[i].pid,
 					rpmh_masters[i].smem_id, &size);
 
+		if ((!IS_ERR_OR_NULL(record)) && (i > 0))
+			pr_cont(", ");
+
 		if (!IS_ERR_OR_NULL(record)) {
 			accumulated_duration = record->accumulated_duration;
 			if (record->last_entered > record->last_exited)
-				accumulated_duration +=
-					(arch_counter_get_cntvct() -
-						record->last_entered);
+				accumulated_duration += (arch_counter_get_cntvct() - record->last_entered);
 
 			duration_sec = GET_SEC(accumulated_duration);
 			duration_msec = GET_MSEC(accumulated_duration);
 
-			buf_ptr += sprintf(buf_ptr, "%s(%d, %u.%u), ",
-					rpmh_masters[i].master_name,
-					record->counts,
-					duration_sec, duration_msec);
-		} else {
-			continue;
+			pr_cont("%s(%X, %u.%u)", rpmh_masters[i].master_name, record->counts,
+				duration_sec, duration_msec);
+		}
+		else {
+			pr_cont("\n");
+			break;
 		}
 	}
 
-	buf_ptr--;
-	buf_ptr--;
-	buf_ptr += sprintf(buf_ptr, "\n");
 	mutex_unlock(&rpmh_stats_mutex);
-
-	printk(KERN_INFO "%s", buf);
 }
 EXPORT_SYMBOL(debug_masterstats_show);
 #endif

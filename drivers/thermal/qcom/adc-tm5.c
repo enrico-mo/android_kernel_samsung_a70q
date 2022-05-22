@@ -218,9 +218,30 @@ static int adc_tm5_configure(struct adc_tm_sensor *sensor,
 	buf[7] |= ADC_TM_Mn_MEAS_EN;
 
 	ret = adc_tm5_write_reg(chip,
-			ADC_TM_Mn_ADC_CH_SEL_CTL(btm_chan_idx), buf, 8);
+			ADC_TM_Mn_ADC_CH_SEL_CTL(btm_chan_idx), buf, 1);
 	if (ret < 0) {
-		pr_err("adc-tm block write failed with %d\n", ret);
+		pr_err("adc-tm channel select failed\n");
+		return ret;
+	}
+
+	ret = adc_tm5_write_reg(chip,
+			ADC_TM_Mn_MEAS_INTERVAL_CTL(btm_chan_idx), &buf[5], 1);
+	if (ret < 0) {
+		pr_err("adc-tm timer select failed\n");
+		return ret;
+	}
+
+	ret = adc_tm5_write_reg(chip,
+			ADC_TM_Mn_CTL(btm_chan_idx), &buf[6], 1);
+	if (ret < 0) {
+		pr_err("adc-tm parameter select failed\n");
+		return ret;
+	}
+
+	ret = adc_tm5_write_reg(chip,
+			ADC_TM_Mn_EN(btm_chan_idx), &buf[7], 1);
+	if (ret < 0) {
+		pr_err("adc-tm monitoring enable failed\n");
 		return ret;
 	}
 
@@ -1082,7 +1103,7 @@ static int adc_tm5_init(struct adc_tm_chip *chip, uint32_t dt_chans)
 
 	for (i = 0; i < dt_chans; i++) {
 		if ((i + offset_btm_idx) > ADC_TM_CHAN7) {
-			pr_err("Invalid BTM index %d\n", (i + offset_btm_idx));
+			pr_err("Invalid BTM index\n", (i + offset_btm_idx));
 			return -EINVAL;
 		}
 

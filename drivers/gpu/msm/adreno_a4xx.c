@@ -1680,8 +1680,6 @@ static struct adreno_coresight a4xx_coresight = {
 	.registers = a4xx_coresight_registers,
 	.count = ARRAY_SIZE(a4xx_coresight_registers),
 	.groups = a4xx_coresight_groups,
-	.read = kgsl_regread,
-	.write = kgsl_regwrite,
 };
 
 static void a4xx_preempt_callback(struct adreno_device *adreno_dev, int bit)

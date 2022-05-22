@@ -330,12 +330,14 @@ clean_from_lists(struct nf_conn *ct)
 static void nf_ct_add_to_dying_list(struct nf_conn *ct)
 {
 	struct ct_pcpu *pcpu;
-	
+
+#ifdef CONFIG_KNOX_NCM
 	/* START_OF_KNOX_NPA */
 	if ( (check_ncm_flag()) && (ct != NULL) && (atomic_read(&ct->startFlow)) ) {
 		knox_collect_conntrack_data(ct, NCM_FLOW_TYPE_CLOSE, 10);
 	}
 	/* END_OF_KNOX_NPA */
+#endif
 
 	/* add this conntrack to the (per cpu) dying list */
 	ct->cpu = smp_processor_id();
@@ -808,18 +810,10 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 * REJECT will give spurious warnings here.
 	 */
 
-	/* Another skb with the same unconfirmed conntrack may
-	 * win the race. This may happen for bridge(br_flood)
-	 * or broadcast/multicast packets do skb_clone with
-	 * unconfirmed conntrack.
+	/* No external references means no one else could have
+	 * confirmed us.
 	 */
-	if (unlikely(nf_ct_is_confirmed(ct))) {
-		WARN_ON_ONCE(1);
-		nf_conntrack_double_unlock(hash, reply_hash);
-		local_bh_enable();
-		return NF_DROP;
-	}
-
+	WARN_ON(nf_ct_is_confirmed(ct));
 	pr_debug("Confirming conntrack %pK\n", ct);
 	/* We have to check the DYING flag after unlink to prevent
 	 * a race against nf_ct_get_next_corpse() possibly called from
@@ -1626,7 +1620,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 #if defined(CONFIG_IP_NF_TARGET_NATTYPE_MODULE)
 	nattype_ref_timer = rcu_dereference(nattype_refresh_timer);
 	if (nattype_ref_timer)
-		nattype_ref_timer(ct->nattype_entry, ct->timeout);
+		nattype_ref_timer(ct->nattype_entry, ct->timeout.expires);
 #endif
 
 acct:

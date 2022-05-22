@@ -107,7 +107,7 @@ static int get_hal_pixel_depth(u32 hfi_bit_depth)
 static inline int validate_pkt_size(u32 rem_size, u32 msg_size)
 {
 	if (rem_size < msg_size) {
-		dprintk(VIDC_ERR, "%s: bad_packet_size: %d\n",
+		dprintk(VIDC_ERR, "%s: bad_pkt_size: %d\n",
 			__func__, rem_size);
 		return false;
 	}
@@ -119,15 +119,14 @@ static int hfi_process_sess_evt_seq_changed(u32 device_id,
 		struct msm_vidc_cb_info *info)
 {
 	struct msm_vidc_cb_event event_notify = {0};
-	u32 num_properties_changed;
+	u32 num_properties_changed, rem_size;
 	struct hfi_frame_size *frame_sz;
 	struct hfi_profile_level *profile_level;
 	struct hfi_bit_depth *pixel_depth;
 	struct hfi_pic_struct *pic_struct;
 	struct hfi_buffer_requirements *buf_req;
 	struct hfi_index_extradata_input_crop_payload *crop_info;
-	struct hfi_dpb_counts *dpb_counts;
-	u32 rem_size, entropy_mode = 0;
+	u32 entropy_mode = 0;
 	u8 *data_ptr;
 	int prop_id;
 	int luma_bit_depth, chroma_bit_depth;
@@ -245,27 +244,6 @@ static int hfi_process_sess_evt_seq_changed(u32 device_id,
 				data_ptr +=
 					sizeof(struct hfi_pic_struct);
 				rem_size -= sizeof(struct hfi_pic_struct);
-				break;
-			case HFI_PROPERTY_PARAM_VDEC_DPB_COUNTS:
-				if (!validate_pkt_size(rem_size, sizeof(struct
-					hfi_dpb_counts)))
-					return -E2BIG;
-				data_ptr = data_ptr + sizeof(u32);
-				dpb_counts = (struct hfi_dpb_counts *) data_ptr;
-				event_notify.max_dpb_count =
-					dpb_counts->max_dpb_count;
-				event_notify.max_ref_count =
-					dpb_counts->max_ref_count;
-				event_notify.max_dec_buffering =
-					dpb_counts->max_dec_buffering;
-				dprintk(VIDC_DBG,
-					"DPB Counts: dpb %d ref %d buff %d\n",
-						dpb_counts->max_dpb_count,
-						dpb_counts->max_ref_count,
-						dpb_counts->max_dec_buffering);
-				data_ptr +=
-					sizeof(struct hfi_dpb_counts);
-				rem_size -= sizeof(struct hfi_dpb_counts);
 				break;
 			case HFI_PROPERTY_PARAM_VDEC_COLOUR_SPACE:
 				if (!validate_pkt_size(rem_size, sizeof(struct
@@ -387,7 +365,6 @@ static int hfi_process_evt_release_buffer_ref(u32 device_id,
 	event_notify.hal_event_type = HAL_EVENT_RELEASE_BUFFER_REFERENCE;
 	event_notify.packet_buffer = data->packet_buffer;
 	event_notify.extra_data_buffer = data->extra_data_buffer;
-	event_notify.output_tag = data->output_tag;
 
 	info->response_type = HAL_SESSION_EVENT_CHANGE;
 	info->response.event = event_notify;
@@ -1585,7 +1562,7 @@ static int hfi_process_session_etb_done(u32 device_id,
 	data_done.session_id = (void *)(uintptr_t)pkt->session_id;
 	data_done.status = hfi_map_err_status(pkt->error_type);
 	data_done.size = sizeof(struct msm_vidc_cb_data_done);
-	data_done.input_done.input_tag = pkt->input_tag;
+	data_done.clnt_data = pkt->input_tag;
 	data_done.input_done.recon_stats.buffer_index =
 		pkt->ubwc_cr_stats.frame_index;
 	memcpy(&data_done.input_done.recon_stats.ubwc_stats_info,
@@ -1680,8 +1657,6 @@ static int hfi_process_session_ftb_done(
 		data_done.output_done.timestamp_hi = pkt->time_stamp_hi;
 		data_done.output_done.timestamp_lo = pkt->time_stamp_lo;
 		data_done.output_done.flags1 = pkt->flags;
-		data_done.output_done.input_tag = pkt->input_tag;
-		data_done.output_done.output_tag = pkt->output_tag;
 		data_done.output_done.mark_target = pkt->mark_target;
 		data_done.output_done.mark_data = pkt->mark_data;
 		data_done.output_done.stats = pkt->stats;
@@ -1729,9 +1704,7 @@ static int hfi_process_session_ftb_done(
 		data_done.output_done.frame_height = pkt->frame_height;
 		data_done.output_done.start_x_coord = pkt->start_x_coord;
 		data_done.output_done.start_y_coord = pkt->start_y_coord;
-		data_done.output_done.input_tag = pkt->input_tag;
-		data_done.output_done.input_tag1 = pkt->input_tag2;
-		data_done.output_done.output_tag = pkt->output_tag;
+		data_done.output_done.input_tag1 = pkt->input_tag;
 		data_done.output_done.picture_type = pkt->picture_type;
 		data_done.output_done.packet_buffer1 = pkt->packet_buffer;
 		data_done.output_done.extra_data_buffer =
@@ -2049,7 +2022,7 @@ static int hfi_process_sys_property_info(u32 device_id,
 	default:
 		dprintk(VIDC_DBG,
 				"%s: unknown_prop_id: %x\n",
-				__func__, pkt->rg_property_data[0]);
+				pkt->rg_property_data[0], __func__);
 		return -ENOTSUPP;
 	}
 

@@ -141,17 +141,25 @@ struct ufs_dev_fix {
 #define UFS_DEVICE_QUIRK_HS_G1_TO_HS_G3_SWITCH	(1 << 9)
 
 /*
+ * Some UFS devices support the FATAL MODE
+ * to gether the debug info.
+ */
+#define UFS_DEVICE_QUIRK_SUPPORT_QUERY_FATAL_MODE	(1 << 9)
+
+/*
+ * Some UFS devices raise the urgent bkops exception event,
+ * even when BKOPS status doesn't indicate performance impacted
+ * or critical. Once urgent_bkops_lvl sets no op or non critical,
+ * host enable bkops whenever the host resume regardless of urgent bkops status.
+ */
+#define UFS_DEVICE_QUIRK_URGENT_BKOPS_EE (1 << 10)
+
+/*
  * Some UFS devices need more delay after device reference clk is turned on
  * but before initiation of the state transition to STALL from a LS-MODE or
  * from the HIBERN8 state. Enable this quirk to give UFS devices 50us delay
  * instead of the default delay.
  */
 #define UFS_DEVICE_QUIRK_WAIT_AFTER_REF_CLK_UNGATE	(1 << 10)
-
-/*
- * Some UFS devices support the FATAL MODE
- * to gether the debug info.
- */
-#define UFS_DEVICE_QUIRK_SUPPORT_QUERY_FATAL_MODE	(1 << 11)
 
 #endif /* UFS_QUIRKS_H_ */

@@ -768,7 +768,7 @@ static ssize_t dp_debug_write_exe_mode(struct file *file,
 		const char __user *user_buff, size_t count, loff_t *ppos)
 {
 	struct dp_debug_private *debug = file->private_data;
-	char buf[SZ_32];
+	char *buf;
 	size_t len = 0;
 
 	if (!debug)
@@ -778,9 +778,7 @@ static ssize_t dp_debug_write_exe_mode(struct file *file,
 		return 0;
 
 	len = min_t(size_t, count, SZ_32 - 1);
-	if (copy_from_user(buf, user_buff, len))
-		goto end;
-
+	buf = memdup_user(user_buff, len);
 	buf[len] = '\0';
 
 	if (sscanf(buf, "%3s", debug->exe_mode) != 1)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,8 +37,7 @@ static struct i2c_settings_list*
 		return NULL;
 
 	tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
-		kvzalloc(size * sizeof(struct cam_sensor_i2c_reg_array),
-			GFP_KERNEL);
+		vzalloc(size * sizeof(struct cam_sensor_i2c_reg_array));
 	if (tmp->i2c_settings.reg_setting == NULL) {
 		list_del(&(tmp->list));
 		kvfree(tmp);
@@ -61,7 +60,7 @@ int32_t delete_request(struct i2c_settings_array *i2c_array)
 
 	list_for_each_entry_safe(i2c_list, i2c_next,
 		&(i2c_array->list_head), list) {
-		kvfree(i2c_list->i2c_settings.reg_setting);
+		vfree(i2c_list->i2c_settings.reg_setting);
 		list_del(&(i2c_list->list));
 		kvfree(i2c_list);
 	}
@@ -338,6 +337,7 @@ int cam_sensor_i2c_command_parser(
 		cmd_buf = (uint32_t *)generic_ptr;
 		cmd_buf += cmd_desc[i].offset / sizeof(uint32_t);
 
+		remain_len -= cmd_desc[i].offset;
 		if (remain_len < cmd_desc[i].length) {
 			CAM_ERR(CAM_SENSOR, "buffer provided too small");
 			return -EINVAL;
@@ -755,52 +755,6 @@ int32_t msm_camera_fill_vreg_params(
 					"cam_v_custom2")) {
 					CAM_DBG(CAM_SENSOR,
 						"i:%d j:%d cam_vcustom2", i, j);
-					power_setting[i].seq_val = j;
-
-					if (VALIDATE_VOLTAGE(
-						soc_info->rgltr_min_volt[j],
-						soc_info->rgltr_max_volt[j],
-						power_setting[i].config_val)) {
-						soc_info->rgltr_min_volt[j] =
-						soc_info->rgltr_max_volt[j] =
-						power_setting[i].config_val;
-					}
-					break;
-				}
-			}
-			if (j == num_vreg)
-				power_setting[i].seq_val = INVALID_VREG;
-			break;
-		case SENSOR_CUSTOM_REG3:
-			for (j = 0; j < num_vreg; j++) {
-
-				if (!strcmp(soc_info->rgltr_name[j],
-					"cam_v_custom3")) {
-					CAM_DBG(CAM_SENSOR,
-						"i:%d j:%d cam_vcustom3", i, j);
-					power_setting[i].seq_val = j;
-
-					if (VALIDATE_VOLTAGE(
-						soc_info->rgltr_min_volt[j],
-						soc_info->rgltr_max_volt[j],
-						power_setting[i].config_val)) {
-						soc_info->rgltr_min_volt[j] =
-						soc_info->rgltr_max_volt[j] =
-						power_setting[i].config_val;
-					}
-					break;
-				}
-			}
-			if (j == num_vreg)
-				power_setting[i].seq_val = INVALID_VREG;
-			break;
-		case SENSOR_CUSTOM_REG4:
-			for (j = 0; j < num_vreg; j++) {
-
-				if (!strcmp(soc_info->rgltr_name[j],
-					"cam_v_custom4")) {
-					CAM_DBG(CAM_SENSOR,
-						"i:%d j:%d cam_vcustom4", i, j);
 					power_setting[i].seq_val = j;
 
 					if (VALIDATE_VOLTAGE(
@@ -1753,8 +1707,6 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
-		case SENSOR_CUSTOM_REG3:
-		case SENSOR_CUSTOM_REG4:
 #ifdef NEVER
 			if (power_setting->seq_val == INVALID_VREG)
 				break;
@@ -1873,8 +1825,6 @@ power_up_failed:
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
-		case SENSOR_CUSTOM_REG3:
-		case SENSOR_CUSTOM_REG4:
 			if (power_setting->seq_val < num_vreg) {
 				CAM_DBG(CAM_SENSOR, "Disable Regulator");
 				vreg_idx = power_setting->seq_val;
@@ -2043,8 +1993,6 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_VAF_PWDM:
 		case SENSOR_CUSTOM_REG1:
 		case SENSOR_CUSTOM_REG2:
-		case SENSOR_CUSTOM_REG3:
-		case SENSOR_CUSTOM_REG4:
 #ifdef NEVER
 			if (pd->seq_val == INVALID_VREG)
 				break;
@@ -2133,4 +2081,3 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 
 	return 0;
 }
-
